@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CallSheetCraft</title>
+  <meta name="description" content="Beautiful, personalized film call sheets">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Loading State -->
+    <div id="loading-screen" class="screen active">
+      <div class="loader-container">
+        <div class="loader"></div>
+        <p class="loader-text">Loading productions...</p>
+      </div>
+    </div>
+
+    <!-- Production Selection -->
+    <div id="production-screen" class="screen">
+      <header class="header">
+        <div class="logo">
+          <span class="logo-icon">🎬</span>
+          <span class="logo-text">CallSheetCraft</span>
+        </div>
+      </header>
+      
+      <main class="main-content">
+        <section class="hero">
+          <h1 class="hero-title">Select Your Production</h1>
+          <p class="hero-subtitle">Choose a production to view the call sheet</p>
+        </section>
+        
+        <div id="productions-grid" class="productions-grid">
+          <!-- Productions will be inserted here -->
+        </div>
+      </main>
+    </div>
+
+    <!-- Day Selection -->
+    <div id="day-screen" class="screen">
+      <header class="header">
+        <button id="back-to-productions" class="back-button">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Back
+        </button>
+        <div class="logo">
+          <span class="logo-icon">🎬</span>
+          <span class="logo-text">CallSheetCraft</span>
+        </div>
+      </header>
+      
+      <main class="main-content">
+        <section class="hero">
+          <h1 id="selected-production-title" class="hero-title">Production Name</h1>
+          <p class="hero-subtitle">Select shoot day</p>
+        </section>
+        
+        <div id="days-grid" class="days-grid">
+          <!-- Days will be inserted here -->
+        </div>
+      </main>
+    </div>
+
+    <!-- Phone Entry -->
+    <div id="phone-screen" class="screen">
+      <header class="header">
+        <button id="back-to-days" class="back-button">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Back
+        </button>
+        <div class="logo">
+          <span class="logo-icon">🎬</span>
+          <span class="logo-text">CallSheetCraft</span>
+        </div>
+      </header>
+      
+      <main class="main-content">
+        <section class="phone-entry-section">
+          <div class="phone-card">
+            <h2 class="phone-title">Enter Your Phone Number</h2>
+            <p class="phone-subtitle">We'll personalize your call sheet with your specific details</p>
+            
+            <div id="closed-set-warning" class="warning-banner hidden">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M10 6V10M10 14H10.01M19 10C19 14.9706 14.9706 19 10 19C5.02944 19 1 14.9706 1 10C1 5.02944 5.02944 1 10 1C14.9706 1 19 5.02944 19 10Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <div>
+                <strong>Closed Set</strong>
+                <p>Please do not publicly share any images or video from this production.</p>
+              </div>
+            </div>
+            
+            <form id="phone-form" class="phone-form">
+              <div class="input-group">
+                <input type="tel" id="phone-input" class="phone-input" placeholder="04XX XXX XXX" autocomplete="tel">
+                <label for="phone-input" class="input-label">Phone Number</label>
+              </div>
+              
+              <button type="submit" class="btn btn-primary">
+                View My Call Sheet
+              </button>
+            </form>
+            
+            <div id="skip-option" class="skip-option hidden">
+              <button id="skip-button" class="btn btn-ghost">
+                Skip and view general call sheet
+              </button>
+              <p class="skip-note">Contact information will be hidden</p>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Call Sheet View -->
+    <div id="callsheet-screen" class="screen">
+      <header class="header callsheet-header">
+        <button id="back-to-phone" class="back-button">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Back
+        </button>
+        <div id="callsheet-header-title" class="header-title"></div>
+      </header>
+      
+      <main class="callsheet-content">
+        <!-- Personal Greeting (shown when phone matched) -->
+        <section id="personal-greeting" class="greeting-section hidden">
+          <!-- Greeting content inserted here -->
+        </section>
+        
+        <!-- Closed Set Warning -->
+        <section id="callsheet-closed-warning" class="closed-warning-section hidden">
+          <div class="warning-card">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M12 9V13M12 17H12.01M5.07183 19H18.9282C20.4678 19 21.4301 17.3333 20.6603 16L13.7321 4C12.9623 2.66667 11.0377 2.66667 10.2679 4L3.33975 16C2.56995 17.3333 3.53223 19 5.07183 19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <div>
+              <strong>Closed Set</strong>
+              <p>This is a closed set. Please do not share any images or video from this production publicly.</p>
+            </div>
+          </div>
+        </section>
+        
+        <!-- Production Info Bar -->
+        <section id="info-bar" class="info-bar-section">
+          <!-- Info bar inserted here -->
+        </section>
+        
+        <!-- Notes Section -->
+        <section id="notes-section" class="notes-section hidden">
+          <!-- Notes inserted here -->
+        </section>
+        
+        <!-- Main Grid -->
+        <div class="callsheet-grid">
+          <!-- Crew Section -->
+          <section id="crew-section" class="card crew-section">
+            <h2 class="section-title">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M14 15.8333V14.1667C14 13.2826 13.6488 12.4348 13.0237 11.8096C12.3986 11.1845 11.5507 10.8333 10.6667 10.8333H4.33333C3.44928 10.8333 2.60143 11.1845 1.97631 11.8096C1.35119 12.4348 1 13.2826 1 14.1667V15.8333" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M7.5 7.5C9.34095 7.5 10.8333 6.00762 10.8333 4.16667C10.8333 2.32572 9.34095 0.833336 7.5 0.833336C5.65905 0.833336 4.16667 2.32572 4.16667 4.16667C4.16667 6.00762 5.65905 7.5 7.5 7.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M19 15.8334V14.1667C18.9994 13.4261 18.7501 12.7072 18.2926 12.1263C17.835 11.5454 17.1958 11.1355 16.4792 10.9617" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M13.1458 1.29169C13.8644 1.46435 14.5057 1.87424 14.9647 2.45617C15.4238 3.03809 15.6738 3.7587 15.6738 4.50127C15.6738 5.24384 15.4238 5.96445 14.9647 6.54638C14.5057 7.12831 13.8644 7.53819 13.1458 7.71085" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Crew
+            </h2>
+            <div id="crew-table" class="people-table">
+              <!-- Crew table inserted here -->
+            </div>
+          </section>
+          
+          <!-- Cast Section -->
+          <section id="cast-section" class="card cast-section">
+            <h2 class="section-title">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M16.6667 17.5V15.8333C16.6667 14.9493 16.3155 14.1014 15.6904 13.4763C15.0652 12.8512 14.2174 12.5 13.3333 12.5H6.66667C5.78261 12.5 4.93476 12.8512 4.30964 13.4763C3.68452 14.1014 3.33333 14.9493 3.33333 15.8333V17.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 9.16667C11.841 9.16667 13.3333 7.67428 13.3333 5.83333C13.3333 3.99238 11.841 2.5 10 2.5C8.15905 2.5 6.66666 3.99238 6.66666 5.83333C6.66666 7.67428 8.15905 9.16667 10 9.16667Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Cast
+            </h2>
+            <div id="cast-table" class="people-table">
+              <!-- Cast table inserted here -->
+            </div>
+          </section>
+          
+          <!-- Locations Section -->
+          <section id="locations-section" class="locations-section">
+            <!-- Location cards inserted here -->
+          </section>
+          
+          <!-- Scenes Section -->
+          <section id="scenes-section" class="card scenes-section">
+            <h2 class="section-title">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M2.5 2.5H17.5V15H2.5V2.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M6.66667 17.5H13.3333" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 15V17.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M2.5 5.83333L17.5 5.83333" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Scenes
+            </h2>
+            <div id="scenes-table" class="scenes-table">
+              <!-- Scenes table inserted here -->
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts -->
+  <script src="/js/api.js"></script>
+  <script src="/js/components.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

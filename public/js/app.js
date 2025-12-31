@@ -1,0 +1,393 @@
+/**
+ * CallSheetCraft Application
+ * Main application controller and state management
+ */
+
+const App = {
+    // Application state
+    state: {
+        productions: null,
+        grouped: null,
+        selectedProduction: null,
+        selectedProductionTitle: null,
+        currentProduction: null,
+        userPhone: null,
+        userInfo: null,
+        isAuthenticated: false,
+        isClosedSet: false,
+    },
+
+    // Screen elements
+    screens: {},
+
+    /**
+     * Initialize the application
+     */
+    async init() {
+        console.log('🎬 CallSheetCraft initializing...');
+
+        // Cache screen elements
+        this.screens = {
+            loading: document.getElementById('loading-screen'),
+            production: document.getElementById('production-screen'),
+            day: document.getElementById('day-screen'),
+            phone: document.getElementById('phone-screen'),
+            callsheet: document.getElementById('callsheet-screen'),
+        };
+
+        // Set up event listeners
+        this.setupEventListeners();
+
+        // Load productions
+        try {
+            await this.loadProductions();
+        } catch (error) {
+            console.error('Failed to load productions:', error);
+            this.showError('Failed to load productions. Please refresh the page.');
+        }
+    },
+
+    /**
+     * Set up event listeners
+     */
+    setupEventListeners() {
+        // Back buttons
+        document.getElementById('back-to-productions')?.addEventListener('click', () => {
+            this.showScreen('production');
+        });
+
+        document.getElementById('back-to-days')?.addEventListener('click', () => {
+            this.showScreen('day');
+        });
+
+        document.getElementById('back-to-phone')?.addEventListener('click', () => {
+            this.showScreen('phone');
+        });
+
+        // Phone form
+        document.getElementById('phone-form')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handlePhoneSubmit();
+        });
+
+        // Skip button
+        document.getElementById('skip-button')?.addEventListener('click', () => {
+            this.handleSkip();
+        });
+
+        // Production card clicks (delegated)
+        document.getElementById('productions-grid')?.addEventListener('click', (e) => {
+            const card = e.target.closest('.production-card');
+            if (card) {
+                const title = card.dataset.title;
+                this.selectProduction(title);
+            }
+        });
+
+        // Day card clicks (delegated)
+        document.getElementById('days-grid')?.addEventListener('click', (e) => {
+            const card = e.target.closest('.day-card');
+            if (card) {
+                const id = card.dataset.id;
+                this.selectDay(id);
+            }
+        });
+    },
+
+    /**
+     * Show a specific screen
+     */
+    showScreen(screenName) {
+        Object.values(this.screens).forEach(screen => {
+            screen?.classList.remove('active');
+        });
+        this.screens[screenName]?.classList.add('active');
+    },
+
+    /**
+     * Load all productions
+     */
+    async loadProductions() {
+        this.showScreen('loading');
+
+        const data = await API.getProductions();
+        this.state.productions = data.productions;
+        this.state.grouped = data.grouped;
+
+        this.renderProductionsGrid();
+        this.showScreen('production');
+    },
+
+    /**
+     * Render the productions grid
+     */
+    renderProductionsGrid() {
+        const grid = document.getElementById('productions-grid');
+        if (!grid || !this.state.grouped) return;
+
+        const html = this.state.grouped
+            .filter(g => g.days.length > 0)
+            .map(g => Components.renderProductionCard(g.title, g.days))
+            .join('');
+
+        grid.innerHTML = html || '<p style="text-align: center; color: var(--text-tertiary);">No productions found</p>';
+    },
+
+    /**
+     * Select a production title
+     */
+    selectProduction(title) {
+        this.state.selectedProductionTitle = title;
+        const group = this.state.grouped.find(g => g.title === title);
+
+        if (!group) return;
+
+        // Update title
+        document.getElementById('selected-production-title').textContent = title;
+
+        // If only one day, skip day selection
+        if (group.days.length === 1) {
+            this.selectDay(group.days[0].id);
+            return;
+        }
+
+        // Render days grid
+        const daysGrid = document.getElementById('days-grid');
+        daysGrid.innerHTML = group.days.map(d => Components.renderDayCard(d)).join('');
+
+        this.showScreen('day');
+    },
+
+    /**
+     * Select a shoot day
+     */
+    async selectDay(productionId) {
+        this.state.selectedProduction = productionId;
+
+        // Show loading while fetching
+        const phoneCard = document.querySelector('.phone-card');
+        if (phoneCard) {
+            phoneCard.style.opacity = '0.5';
+        }
+
+        // Fetch production data (including Gemini enrichment)
+        try {
+            this.state.currentProduction = await API.getProduction(productionId);
+            this.state.isClosedSet = this.state.currentProduction.properties?.closed_set === true;
+
+            // Update phone screen UI based on closed set status
+            this.updatePhoneScreen();
+
+            this.showScreen('phone');
+        } catch (error) {
+            console.error('Failed to load production:', error);
+            this.showError('Failed to load call sheet data.');
+        } finally {
+            if (phoneCard) {
+                phoneCard.style.opacity = '1';
+            }
+        }
+    },
+
+    /**
+     * Update phone screen based on closed set status
+     */
+    updatePhoneScreen() {
+        const closedWarning = document.getElementById('closed-set-warning');
+        const skipOption = document.getElementById('skip-option');
+
+        if (this.state.isClosedSet) {
+            // Show closed set warning, hide skip option
+            closedWarning?.classList.remove('hidden');
+            skipOption?.classList.add('hidden');
+        } else {
+            // Hide closed set warning, show skip option
+            closedWarning?.classList.add('hidden');
+            skipOption?.classList.remove('hidden');
+        }
+    },
+
+    /**
+     * Handle phone form submission
+     */
+    handlePhoneSubmit() {
+        const phoneInput = document.getElementById('phone-input');
+        const phone = phoneInput?.value?.trim();
+
+        if (!phone) {
+            phoneInput?.focus();
+            return;
+        }
+
+        this.state.userPhone = phone;
+        this.state.isAuthenticated = true;
+
+        // Find user in crew or cast
+        this.findUser(phone);
+
+        // Render call sheet
+        this.renderCallSheet();
+    },
+
+    /**
+     * Handle skip button
+     */
+    handleSkip() {
+        this.state.isAuthenticated = false;
+        this.state.userPhone = null;
+        this.state.userInfo = null;
+
+        this.renderCallSheet();
+    },
+
+    /**
+     * Find user in crew or cast by phone number
+     */
+    findUser(phone) {
+        const normalizedPhone = Components.normalizePhone(phone);
+        const production = this.state.currentProduction;
+
+        // Check crew
+        for (const member of production.crew || []) {
+            if (Components.normalizePhone(member.Phone) === normalizedPhone) {
+                this.state.userInfo = {
+                    name: member.Name,
+                    role: member.Role,
+                    callTime: member['Call Time'],
+                    type: 'crew',
+                };
+                return;
+            }
+        }
+
+        // Check cast
+        for (const member of production.cast || []) {
+            if (Components.normalizePhone(member.Phone) === normalizedPhone) {
+                this.state.userInfo = {
+                    name: member.Name,
+                    character: member.Character,
+                    callTime: member['Call Time'],
+                    type: 'cast',
+                };
+                return;
+            }
+        }
+
+        // No match found
+        this.state.userInfo = null;
+    },
+
+    /**
+     * Render the call sheet view
+     */
+    renderCallSheet() {
+        const production = this.state.currentProduction;
+        if (!production) return;
+
+        // Update header
+        const headerTitle = document.getElementById('callsheet-header-title');
+        if (headerTitle) {
+            const dayNum = production.properties.shoot_day_ || 1;
+            const date = Components.formatDate(production.properties.date_of_shoot);
+            headerTitle.textContent = `${production.title} • Day ${dayNum} • ${date}`;
+        }
+
+        // Render greeting (if authenticated and matched)
+        const greetingSection = document.getElementById('personal-greeting');
+        if (greetingSection) {
+            if (this.state.userInfo) {
+                greetingSection.innerHTML = Components.renderGreeting(this.state.userInfo);
+                greetingSection.classList.remove('hidden');
+            } else {
+                greetingSection.classList.add('hidden');
+            }
+        }
+
+        // Show/hide closed set warning
+        const closedWarning = document.getElementById('callsheet-closed-warning');
+        if (closedWarning) {
+            if (this.state.isClosedSet) {
+                closedWarning.classList.remove('hidden');
+            } else {
+                closedWarning.classList.add('hidden');
+            }
+        }
+
+        // Render info bar
+        const infoBar = document.getElementById('info-bar');
+        if (infoBar) {
+            const userCallTime = this.state.userInfo?.callTime;
+            infoBar.innerHTML = Components.renderInfoBar(production.properties, userCallTime);
+        }
+
+        // Render notes
+        const notesSection = document.getElementById('notes-section');
+        if (notesSection) {
+            const notes = production.properties.notes;
+            if (notes) {
+                notesSection.innerHTML = Components.renderNotes(notes);
+                notesSection.classList.remove('hidden');
+            } else {
+                notesSection.classList.add('hidden');
+            }
+        }
+
+        // Render crew table
+        const crewTable = document.getElementById('crew-table');
+        if (crewTable) {
+            crewTable.innerHTML = Components.renderPeopleTable(
+                production.crew,
+                ['Role', 'Name', 'Phone', 'Call Time'],
+                this.state.userPhone,
+                this.state.isAuthenticated
+            );
+        }
+
+        // Render cast table
+        const castTable = document.getElementById('cast-table');
+        if (castTable) {
+            castTable.innerHTML = Components.renderPeopleTable(
+                production.cast,
+                ['Character', 'Name', 'Phone', 'Call Time'],
+                this.state.userPhone,
+                this.state.isAuthenticated
+            );
+        }
+
+        // Render locations
+        const locationsSection = document.getElementById('locations-section');
+        if (locationsSection) {
+            const locationsHtml = production.locations
+                .map((loc, i) => Components.renderLocationCard(loc, i + 1))
+                .join('');
+            locationsSection.innerHTML = locationsHtml;
+        }
+
+        // Render scenes
+        const scenesTable = document.getElementById('scenes-table');
+        if (scenesTable) {
+            const userCharacters = this.state.userInfo?.character
+                ? [this.state.userInfo.character]
+                : [];
+            scenesTable.innerHTML = Components.renderScenesTable(
+                production.scenes,
+                userCharacters
+            );
+        }
+
+        this.showScreen('callsheet');
+    },
+
+    /**
+     * Show error message
+     */
+    showError(message) {
+        // For now, just use alert. In production, use a toast/modal component.
+        alert(message);
+    }
+};
+
+// Initialize on DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+    App.init();
+});

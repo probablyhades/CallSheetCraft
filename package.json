@@ -1,0 +1,23 @@
+{
+    "name": "callsheetcraft",
+    "version": "1.0.0",
+    "description": "Beautiful, personalized film call sheets powered by Craft and Gemini",
+    "main": "server/index.js",
+    "scripts": {
+        "start": "node server/index.js",
+        "dev": "node --watch server/index.js"
+    },
+    "keywords": [
+        "film",
+        "call-sheet",
+        "craft",
+        "gemini"
+    ],
+    "author": "Harry Lewandowski",
+    "license": "MIT",
+    "dependencies": {
+        "express": "^4.18.2",
+        "dotenv": "^16.3.1",
+        "@google/generative-ai": "^0.21.0"
+    }
+}
