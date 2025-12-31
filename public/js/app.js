@@ -61,7 +61,13 @@ const App = {
         });
 
         document.getElementById('back-to-phone')?.addEventListener('click', () => {
-            this.showScreen('phone');
+            // Go back to days if multiple days, otherwise to productions
+            const group = this.state.grouped?.find(g => g.title === this.state.selectedProductionTitle);
+            if (group && group.days.length > 1) {
+                this.showScreen('day');
+            } else {
+                this.showScreen('production');
+            }
         });
 
         // Phone form
@@ -175,10 +181,28 @@ const App = {
     async selectDay(productionId, clickedCard = null) {
         this.state.selectedProduction = productionId;
 
-        // Fetch production data (including Gemini enrichment)
+        // First fetch to check if enrichment is needed
         try {
-            this.state.currentProduction = await API.getProduction(productionId);
+            // Quick fetch without enrichment to check status
+            const productionPreview = await API.getProduction(productionId, false);
+
+            // Check if any locations need enrichment
+            const needsEnrichment = productionPreview.locations?.some(loc => {
+                const gemData = loc.gemData || {};
+                return !gemData.GEMnearestHospital || gemData.GEMnearestHospital.trim() === '';
+            });
+
+            // Show enrichment loader if needed
+            if (needsEnrichment) {
+                document.getElementById('enrichment-loader')?.classList.remove('hidden');
+            }
+
+            // Fetch with enrichment enabled
+            this.state.currentProduction = await API.getProduction(productionId, true);
             this.state.isClosedSet = this.state.currentProduction.properties?.closed_set === true;
+
+            // Hide enrichment loader
+            document.getElementById('enrichment-loader')?.classList.add('hidden');
 
             // Update phone screen UI based on closed set status
             this.updatePhoneScreen();
@@ -189,6 +213,7 @@ const App = {
             this.showScreen('phone');
         } catch (error) {
             console.error('Failed to load production:', error);
+            document.getElementById('enrichment-loader')?.classList.add('hidden');
             this.showError('Failed to load call sheet data.');
             clickedCard?.classList.remove('loading');
         }

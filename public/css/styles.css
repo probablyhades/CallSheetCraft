@@ -1013,6 +1013,63 @@ a:hover {
   border-bottom-color: rgba(245, 158, 11, 0.2);
 }
 
+/* ===== AI Disclosure Footer ===== */
+.ai-disclosure {
+  margin-top: var(--spacing-2xl);
+  padding: var(--spacing-lg);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.ai-disclosure p {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* ===== Enrichment Loader Overlay ===== */
+.enrichment-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(10, 10, 11, 0.9);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.enrichment-loader.hidden {
+  display: none;
+}
+
+.enrichment-loader-content {
+  text-align: center;
+}
+
+.enrichment-loader-content .loader {
+  margin: 0 auto var(--spacing-lg);
+}
+
+.enrichment-loader-content p {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.enrichment-loader-content span {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
 /* ===== Hidden Utility ===== */
 .hidden {
   display: none !important;
