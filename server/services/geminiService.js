@@ -52,6 +52,7 @@ function needsEnrichment(gemData) {
 
 /**
  * Update a location table in Craft with enriched GEM data
+ * Uses markdown format as required by the Craft PUT /blocks API
  */
 async function updateLocationWithGemData(tableId, gemData) {
     // First, fetch the current table to get its structure
@@ -62,8 +63,8 @@ async function updateLocationWithGemData(tableId, gemData) {
         return false;
     }
 
-    // Build the updated markdown for the table
-    const rows = tableBlock.rows.map(row => {
+    // Build updated rows with GEM data
+    const updatedRows = tableBlock.rows.map(row => {
         if (row.length >= 2) {
             const key = row[0]?.value?.trim();
 
@@ -73,22 +74,38 @@ async function updateLocationWithGemData(tableId, gemData) {
                 const lowerKey = gemKey.charAt(0).toLowerCase() + gemKey.slice(1);
 
                 if (gemData[lowerKey]) {
-                    return [
-                        { value: key, attributes: [] },
-                        { value: gemData[lowerKey], attributes: [] }
-                    ];
+                    // Return updated row with value
+                    return [key, gemData[lowerKey]];
                 }
             }
         }
-        return row;
+        // Return original row values
+        return [row[0]?.value || '', row[1]?.value || ''];
     });
 
-    // Update the block
+    // Convert to markdown table format
+    // Format: | Key | Value |
+    const markdownRows = updatedRows.map(([key, value]) => {
+        // Escape pipe characters in values
+        const escapedKey = (key || '').replace(/\|/g, '\\|');
+        const escapedValue = (value || '').replace(/\|/g, '\\|');
+        return `| ${escapedKey} | ${escapedValue} |`;
+    });
+
+    // Add header separator row after first row (Craft tables are key-value, first row is header)
+    const markdown = [
+        markdownRows[0] || '| Key | Value |',
+        '| --- | --- |',
+        ...markdownRows.slice(1)
+    ].join('\n');
+
+    // Update the block using markdown
     try {
         await craftService.updateBlocks([{
             id: tableId,
-            rows: rows
+            markdown: markdown
         }]);
+        console.log('Successfully updated Craft table with GEM data');
         return true;
     } catch (error) {
         console.error('Error updating location table:', error);
