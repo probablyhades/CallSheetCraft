@@ -8,26 +8,26 @@
   --bg-card: #141416;
   --bg-card-hover: #1a1a1d;
   --bg-elevated: #1e1e21;
-  
+
   --accent-primary: #3b82f6;
   --accent-primary-hover: #2563eb;
   --accent-secondary: #f59e0b;
   --accent-success: #10b981;
   --accent-warning: #f59e0b;
   --accent-danger: #ef4444;
-  
+
   --text-primary: #ffffff;
   --text-secondary: rgba(255, 255, 255, 0.7);
   --text-tertiary: rgba(255, 255, 255, 0.5);
   --text-muted: rgba(255, 255, 255, 0.3);
-  
+
   --border-color: rgba(255, 255, 255, 0.08);
   --border-color-strong: rgba(255, 255, 255, 0.15);
-  
+
   /* Typography */
   --font-display: 'Space Grotesk', sans-serif;
   --font-body: 'Inter', sans-serif;
-  
+
   /* Spacing */
   --spacing-xs: 0.25rem;
   --spacing-sm: 0.5rem;
@@ -36,20 +36,20 @@
   --spacing-xl: 2rem;
   --spacing-2xl: 3rem;
   --spacing-3xl: 4rem;
-  
+
   /* Border Radius */
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
   --radius-2xl: 1.5rem;
-  
+
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
   --shadow-glow: 0 0 30px rgba(59, 130, 246, 0.15);
-  
+
   /* Transitions */
   --transition-fast: 0.15s ease;
   --transition-normal: 0.25s ease;
@@ -57,7 +57,9 @@
 }
 
 /* ===== Reset & Base ===== */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -74,6 +76,7 @@ body {
   color: var(--text-primary);
   line-height: 1.6;
   min-height: 100vh;
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -108,10 +111,20 @@ a:hover {
 
 /* ===== Loading Screen ===== */
 #loading-screen {
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  z-index: 1000;
+}
+
+#loading-screen.active {
+  display: flex;
 }
 
 .loader-container {
@@ -129,7 +142,9 @@ a:hover {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .loader-text {
@@ -281,6 +296,25 @@ a:hover {
   font-size: 0.875rem;
 }
 
+.production-card.loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.production-card.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
 /* ===== Days Grid ===== */
 .days-grid {
   display: grid;
@@ -291,6 +325,7 @@ a:hover {
 }
 
 .day-card {
+  position: relative;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
@@ -324,6 +359,25 @@ a:hover {
   margin-top: var(--spacing-sm);
   font-size: 0.875rem;
   color: var(--text-secondary);
+}
+
+.day-card.loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.day-card.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 /* ===== Phone Entry ===== */
@@ -665,7 +719,7 @@ a:hover {
   .callsheet-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .locations-section,
   .scenes-section {
     grid-column: span 2;
@@ -969,34 +1023,34 @@ a:hover {
   .main-content {
     padding: var(--spacing-lg);
   }
-  
+
   .productions-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .days-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .phone-card {
     padding: var(--spacing-lg);
   }
-  
+
   .info-bar {
     grid-template-columns: repeat(3, 1fr);
   }
-  
+
   .greeting-details {
     flex-direction: column;
     gap: var(--spacing-sm);
   }
-  
+
   .location-header {
     flex-direction: column;
     align-items: flex-start;
     gap: var(--spacing-md);
   }
-  
+
   .map-link {
     width: 100%;
     justify-content: center;
@@ -1007,32 +1061,106 @@ a:hover {
   .header {
     padding: var(--spacing-sm) var(--spacing-md);
   }
-  
+
   .logo-text {
     font-size: 1rem;
   }
-  
+
   .info-bar {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .callsheet-content {
+    padding: var(--spacing-sm);
+  }
+
+  .main-content {
     padding: var(--spacing-md);
+  }
+
+  .card {
+    padding: var(--spacing-md);
+  }
+
+  .section-title {
+    font-size: 1rem;
+    margin-bottom: var(--spacing-md);
+  }
+
+  /* Force tables to scroll horizontally on mobile */
+  .people-table,
+  .scenes-table {
+    margin: 0 calc(-1 * var(--spacing-md));
+    padding: 0 var(--spacing-md);
+    width: calc(100% + (var(--spacing-md) * 2));
+  }
+
+  .people-table table,
+  .scenes-table table {
+    min-width: 400px;
+  }
+
+  /* Compact location cards on mobile */
+  .locations-section {
+    grid-template-columns: 1fr;
+  }
+
+  .location-body {
+    padding: var(--spacing-md);
+  }
+
+  .location-addresses {
+    grid-template-columns: 1fr;
+  }
+
+  .gem-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Warning cards wrap better on mobile */
+  .warning-card {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .warning-banner {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  /* Hero adjustments */
+  .hero-title {
+    font-size: 1.5rem;
+  }
+
+  .hero-subtitle {
+    font-size: 0.875rem;
+  }
+
+  /* Greeting section mobile */
+  .greeting-card {
+    padding: var(--spacing-md);
+  }
+
+  .greeting-title {
+    font-size: 1.25rem;
   }
 }
 
 /* ===== Print Styles ===== */
 @media print {
+
   .header,
   .back-button {
     display: none;
   }
-  
+
   .screen {
     display: block;
     opacity: 1;
   }
-  
+
   .card {
     break-inside: avoid;
   }

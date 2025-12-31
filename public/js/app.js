@@ -78,18 +78,20 @@ const App = {
         // Production card clicks (delegated)
         document.getElementById('productions-grid')?.addEventListener('click', (e) => {
             const card = e.target.closest('.production-card');
-            if (card) {
+            if (card && !card.classList.contains('loading')) {
+                card.classList.add('loading');
                 const title = card.dataset.title;
-                this.selectProduction(title);
+                this.selectProduction(title, card);
             }
         });
 
         // Day card clicks (delegated)
         document.getElementById('days-grid')?.addEventListener('click', (e) => {
             const card = e.target.closest('.day-card');
-            if (card) {
+            if (card && !card.classList.contains('loading')) {
+                card.classList.add('loading');
                 const id = card.dataset.id;
-                this.selectDay(id);
+                this.selectDay(id, card);
             }
         });
     },
@@ -102,6 +104,9 @@ const App = {
             screen?.classList.remove('active');
         });
         this.screens[screenName]?.classList.add('active');
+
+        // Scroll to top on screen change
+        window.scrollTo(0, 0);
     },
 
     /**
@@ -136,20 +141,26 @@ const App = {
     /**
      * Select a production title
      */
-    selectProduction(title) {
+    selectProduction(title, clickedCard = null) {
         this.state.selectedProductionTitle = title;
         const group = this.state.grouped.find(g => g.title === title);
 
-        if (!group) return;
+        if (!group) {
+            clickedCard?.classList.remove('loading');
+            return;
+        }
 
         // Update title
         document.getElementById('selected-production-title').textContent = title;
 
         // If only one day, skip day selection
         if (group.days.length === 1) {
-            this.selectDay(group.days[0].id);
+            this.selectDay(group.days[0].id, clickedCard);
             return;
         }
+
+        // Remove loading state before showing next screen
+        clickedCard?.classList.remove('loading');
 
         // Render days grid
         const daysGrid = document.getElementById('days-grid');
@@ -161,14 +172,8 @@ const App = {
     /**
      * Select a shoot day
      */
-    async selectDay(productionId) {
+    async selectDay(productionId, clickedCard = null) {
         this.state.selectedProduction = productionId;
-
-        // Show loading while fetching
-        const phoneCard = document.querySelector('.phone-card');
-        if (phoneCard) {
-            phoneCard.style.opacity = '0.5';
-        }
 
         // Fetch production data (including Gemini enrichment)
         try {
@@ -178,14 +183,14 @@ const App = {
             // Update phone screen UI based on closed set status
             this.updatePhoneScreen();
 
+            // Remove loading state
+            clickedCard?.classList.remove('loading');
+
             this.showScreen('phone');
         } catch (error) {
             console.error('Failed to load production:', error);
             this.showError('Failed to load call sheet data.');
-        } finally {
-            if (phoneCard) {
-                phoneCard.style.opacity = '1';
-            }
+            clickedCard?.classList.remove('loading');
         }
     },
 

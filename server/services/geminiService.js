@@ -1,6 +1,7 @@
 /**
  * Gemini API Service
  * Handles location data enrichment using Gemini with Google Search grounding
+ * Consolidated to use a SINGLE API request for all locations to avoid rate limiting
  */
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -27,74 +28,6 @@ function initGemini() {
         });
     }
     return model;
-}
-
-/**
- * Generate enriched location data using Gemini with web search
- */
-async function enrichLocationData(address, shootDate, nextAddress = null) {
-    const model = initGemini();
-    if (!model) {
-        return null;
-    }
-
-    // Format the date for weather/sun queries
-    const dateStr = shootDate || new Date().toISOString().split('T')[0];
-    const formattedDate = new Date(dateStr).toLocaleDateString('en-AU', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
-
-    const prompt = `You are helping a film production crew. I need specific information about this location in Australia: "${address}" for a shoot date of ${formattedDate}.
-
-Please search the web and provide accurate, current information for each of these items. Format your response as a JSON object with these exact keys:
-
-{
-  "nearestHospital": "Name and address of the nearest hospital",
-  "nearestFireStation": "Name and address of the nearest fire station",
-  "nearestPoliceStation": "Name and address of the nearest police station", 
-  "nearestEmergencyAfterHours": "Name and address of nearest 24-hour emergency medical facility",
-  "sunriseTime": "Sunrise time for ${formattedDate} at this location (e.g., '6:42 AM')",
-  "sunsetTime": "Sunset time for ${formattedDate} at this location (e.g., '7:58 PM')",
-  "weatherTemp": "Expected high/low temperature for ${formattedDate} (e.g., '28°C / 19°C')",
-  "weatherDesc": "Professional weather description including precipitation chance and any warnings",
-  "publicTransportInfo": "Concise paragraph on public transport routes connecting to this location, including any walking required"${nextAddress ? `,
-  "transportDesc": "Brief directions for traveling from ${address} to ${nextAddress}"` : ''}
-}
-
-Important:
-- Use Australian format for times and temperatures
-- Be specific with addresses
-- Keep descriptions professional and concise
-- Return ONLY valid JSON, no markdown formatting`;
-
-    try {
-        const result = await model.generateContent(prompt);
-        const response = result.response;
-        const text = response.text();
-
-        // Extract JSON from response (handle potential markdown wrapping)
-        let jsonStr = text;
-        const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-        if (jsonMatch) {
-            jsonStr = jsonMatch[1];
-        }
-
-        // Parse the JSON response
-        const data = JSON.parse(jsonStr.trim());
-
-        // If no next address, set transportDesc to N/A
-        if (!nextAddress) {
-            data.transportDesc = 'N/A';
-        }
-
-        return data;
-    } catch (error) {
-        console.error('Error enriching location data:', error);
-        return null;
-    }
 }
 
 /**
@@ -164,46 +97,120 @@ async function updateLocationWithGemData(tableId, gemData) {
 }
 
 /**
- * Enrich all locations for a production
+ * Enrich ALL locations for a production in a SINGLE API call
+ * This avoids rate limiting issues
  */
 async function enrichProduction(production) {
-    const model = initGemini();
-    if (!model) {
+    const geminiModel = initGemini();
+    if (!geminiModel) {
         console.log('Gemini not configured, skipping enrichment');
         return production;
     }
 
     const locations = production.locations || [];
 
+    // Collect locations that need enrichment
+    const locationsToEnrich = [];
     for (let i = 0; i < locations.length; i++) {
         const location = locations[i];
 
-        // Skip if already enriched
-        if (!needsEnrichment(location.gemData)) {
+        if (needsEnrichment(location.gemData)) {
+            const address = location.data['Location Address'];
+            if (address) {
+                const nextAddress = i < locations.length - 1
+                    ? locations[i + 1]?.data['Location Address']
+                    : null;
+                locationsToEnrich.push({
+                    index: i,
+                    address,
+                    nextAddress,
+                    location
+                });
+            }
+        } else {
             console.log(`Location ${i + 1} already enriched, skipping`);
-            continue;
+        }
+    }
+
+    if (locationsToEnrich.length === 0) {
+        console.log('All locations already enriched');
+        return production;
+    }
+
+    // Format the date for weather/sun queries
+    const dateStr = production.properties.date_of_shoot || new Date().toISOString().split('T')[0];
+    const formattedDate = new Date(dateStr).toLocaleDateString('en-AU', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+
+    // Build a single prompt for ALL locations
+    const locationsList = locationsToEnrich.map((loc, idx) => {
+        let desc = `Location ${idx + 1}: "${loc.address}"`;
+        if (loc.nextAddress) {
+            desc += ` (next location: "${loc.nextAddress}")`;
+        }
+        return desc;
+    }).join('\n');
+
+    const prompt = `You are helping a film production crew in Australia. I need specific information about multiple locations for a shoot date of ${formattedDate}.
+
+LOCATIONS:
+${locationsList}
+
+For EACH location, please search the web and provide accurate, current information. Return a JSON array where each object corresponds to a location in order.
+
+Each object should have these exact keys:
+{
+  "nearestHospital": "Name and address of the nearest hospital",
+  "nearestFireStation": "Name and address of the nearest fire station",
+  "nearestPoliceStation": "Name and address of the nearest police station",
+  "nearestEmergencyAfterHours": "Name and address of nearest 24-hour emergency medical facility",
+  "sunriseTime": "Sunrise time for ${formattedDate} at this location (e.g., '6:42 AM')",
+  "sunsetTime": "Sunset time for ${formattedDate} at this location (e.g., '7:58 PM')",
+  "weatherTemp": "Expected high/low temperature for ${formattedDate} (e.g., '28°C / 19°C')",
+  "weatherDesc": "Professional weather description including precipitation chance and any warnings",
+  "publicTransportInfo": "Concise paragraph on public transport routes connecting to this location",
+  "transportDesc": "Brief directions to next location, or 'N/A' if no next location"
+}
+
+Important:
+- Return a JSON ARRAY with ${locationsToEnrich.length} objects (one per location, in order)
+- Use Australian format for times and temperatures
+- Be specific with addresses
+- Keep descriptions professional and concise
+- Return ONLY valid JSON, no markdown formatting`;
+
+    console.log(`Enriching ${locationsToEnrich.length} locations in a single API call...`);
+
+    try {
+        const result = await geminiModel.generateContent(prompt);
+        const response = result.response;
+        const text = response.text();
+
+        // Extract JSON from response (handle potential markdown wrapping)
+        let jsonStr = text;
+        const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) {
+            jsonStr = jsonMatch[1];
         }
 
-        const address = location.data['Location Address'];
-        if (!address) {
-            console.log(`Location ${i + 1} has no address, skipping`);
-            continue;
+        // Parse the JSON response
+        const enrichedLocations = JSON.parse(jsonStr.trim());
+
+        if (!Array.isArray(enrichedLocations)) {
+            console.error('Expected an array from Gemini, got:', typeof enrichedLocations);
+            return production;
         }
 
-        // Get next location address for transport description
-        const nextAddress = i < locations.length - 1
-            ? locations[i + 1]?.data['Location Address']
-            : null;
+        // Apply enriched data to each location
+        for (let j = 0; j < locationsToEnrich.length && j < enrichedLocations.length; j++) {
+            const locInfo = locationsToEnrich[j];
+            const enrichedData = enrichedLocations[j];
+            const location = locInfo.location;
 
-        console.log(`Enriching location ${i + 1}: ${address}`);
-
-        const enrichedData = await enrichLocationData(
-            address,
-            production.properties.date_of_shoot,
-            nextAddress
-        );
-
-        if (enrichedData) {
             // Update local data
             location.gemData = {
                 GEMnearestHospital: enrichedData.nearestHospital || '',
@@ -221,16 +228,19 @@ async function enrichProduction(production) {
             // Update Craft
             if (location.tableId) {
                 await updateLocationWithGemData(location.tableId, enrichedData);
-                console.log(`Updated Craft with enriched data for location ${i + 1}`);
+                console.log(`Updated Craft with enriched data for location ${locInfo.index + 1}`);
             }
         }
+
+        console.log('All locations enriched successfully');
+    } catch (error) {
+        console.error('Error enriching locations:', error);
     }
 
     return production;
 }
 
 module.exports = {
-    enrichLocationData,
     needsEnrichment,
     updateLocationWithGemData,
     enrichProduction,
