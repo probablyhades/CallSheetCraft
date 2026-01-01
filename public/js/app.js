@@ -37,6 +37,7 @@ const App = {
 
         // Set up event listeners
         this.setupEventListeners();
+        this.setupExportListeners();
 
         // Load productions
         try {
@@ -414,6 +415,240 @@ const App = {
     showError(message) {
         // For now, just use alert. In production, use a toast/modal component.
         alert(message);
+    },
+
+    /**
+     * Export state for modal
+     */
+    exportSettings: {
+        includeContacts: true,
+        useLightMode: false,
+    },
+
+    /**
+     * Handle export button click
+     */
+    handleExportClick() {
+        const modal = document.getElementById('export-modal');
+        const contactGroup = document.querySelector('[data-contacts="true"]').parentElement.parentElement;
+
+        // Hide contact options if not authenticated
+        if (!this.state.isAuthenticated) {
+            contactGroup.style.display = 'none';
+            this.exportSettings.includeContacts = false;
+        } else {
+            contactGroup.style.display = 'block';
+            this.exportSettings.includeContacts = true;
+            // Reset to default selection
+            document.getElementById('export-personalised').classList.add('active');
+            document.getElementById('export-general').classList.remove('active');
+        }
+
+        // Reset mode selection to dark
+        this.exportSettings.useLightMode = false;
+        document.getElementById('export-dark').classList.add('active');
+        document.getElementById('export-light').classList.remove('active');
+
+        modal?.classList.remove('hidden');
+    },
+
+    /**
+     * Close export modal
+     */
+    closeExportModal() {
+        document.getElementById('export-modal')?.classList.add('hidden');
+    },
+
+    /**
+     * Setup export modal event listeners
+     */
+    setupExportListeners() {
+        // Export button
+        document.getElementById('export-pdf-button')?.addEventListener('click', () => {
+            this.handleExportClick();
+        });
+
+        // Close buttons
+        document.getElementById('close-export-modal')?.addEventListener('click', () => {
+            this.closeExportModal();
+        });
+        document.getElementById('cancel-export')?.addEventListener('click', () => {
+            this.closeExportModal();
+        });
+
+        // Contact options toggle
+        document.getElementById('export-personalised')?.addEventListener('click', (e) => {
+            this.exportSettings.includeContacts = true;
+            document.getElementById('export-personalised').classList.add('active');
+            document.getElementById('export-general').classList.remove('active');
+        });
+        document.getElementById('export-general')?.addEventListener('click', (e) => {
+            this.exportSettings.includeContacts = false;
+            document.getElementById('export-general').classList.add('active');
+            document.getElementById('export-personalised').classList.remove('active');
+        });
+
+        // Mode options toggle
+        document.getElementById('export-dark')?.addEventListener('click', (e) => {
+            this.exportSettings.useLightMode = false;
+            document.getElementById('export-dark').classList.add('active');
+            document.getElementById('export-light').classList.remove('active');
+        });
+        document.getElementById('export-light')?.addEventListener('click', (e) => {
+            this.exportSettings.useLightMode = true;
+            document.getElementById('export-light').classList.add('active');
+            document.getElementById('export-dark').classList.remove('active');
+        });
+
+        // Confirm export
+        document.getElementById('confirm-export')?.addEventListener('click', () => {
+            this.generatePDF();
+        });
+
+        // Close on overlay click
+        document.getElementById('export-modal')?.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-overlay')) {
+                this.closeExportModal();
+            }
+        });
+    },
+
+    /**
+     * Generate PDF from call sheet
+     */
+    async generatePDF() {
+        const production = this.state.currentProduction;
+        if (!production) return;
+
+        const confirmBtn = document.getElementById('confirm-export');
+        const originalText = confirmBtn.textContent;
+        confirmBtn.textContent = 'Generating...';
+        confirmBtn.disabled = true;
+
+        try {
+            // Store original state
+            const wasAuthenticated = this.state.isAuthenticated;
+            const originalUserInfo = this.state.userInfo;
+
+            // Apply export settings
+            if (!this.exportSettings.includeContacts) {
+                // Temporarily hide contacts
+                this.state.isAuthenticated = false;
+                this.state.userInfo = null;
+            }
+
+            // Re-render with export settings
+            this.renderCallSheetForExport();
+
+            // Apply light mode if selected
+            const callsheetContent = document.querySelector('.callsheet-content');
+            if (this.exportSettings.useLightMode) {
+                callsheetContent.classList.add('light-mode');
+            }
+
+            // Hide elements not needed in PDF
+            const header = document.querySelector('.callsheet-header');
+            const aiDisclosure = document.querySelector('.ai-disclosure');
+            header?.classList.add('hidden');
+
+            // Wait for styles to apply
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Capture with html2canvas
+            const canvas = await html2canvas(callsheetContent, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: this.exportSettings.useLightMode ? '#ffffff' : '#0a0a0a',
+                logging: false,
+            });
+
+            // Generate PDF with jsPDF
+            const { jsPDF } = window.jspdf;
+            const imgWidth = 210; // A4 width in mm
+            const pageHeight = 297; // A4 height in mm
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            let heightLeft = imgHeight;
+            let position = 0;
+
+            // Add first page
+            pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+
+            // Add additional pages if needed
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+
+            // Generate filename
+            const dayNum = production.properties.shoot_day_ || 1;
+            const filename = `${production.title.replace(/[^a-z0-9]/gi, '_')}_Day${dayNum}_CallSheet.pdf`;
+
+            // Download
+            pdf.save(filename);
+
+            // Restore original state
+            this.state.isAuthenticated = wasAuthenticated;
+            this.state.userInfo = originalUserInfo;
+            callsheetContent.classList.remove('light-mode');
+            header?.classList.remove('hidden');
+
+            // Re-render with original settings
+            this.renderCallSheet();
+            this.closeExportModal();
+
+        } catch (error) {
+            console.error('PDF generation failed:', error);
+            this.showError('Failed to generate PDF. Please try again.');
+        } finally {
+            confirmBtn.textContent = originalText;
+            confirmBtn.disabled = false;
+        }
+    },
+
+    /**
+     * Render call sheet specifically for export (without navigating)
+     */
+    renderCallSheetForExport() {
+        const production = this.state.currentProduction;
+        if (!production) return;
+
+        // Render greeting (if authenticated and matched)
+        const greetingSection = document.getElementById('personal-greeting');
+        if (greetingSection) {
+            if (this.state.userInfo && this.exportSettings.includeContacts) {
+                greetingSection.innerHTML = Components.renderGreeting(this.state.userInfo);
+                greetingSection.classList.remove('hidden');
+            } else {
+                greetingSection.classList.add('hidden');
+            }
+        }
+
+        // Render crew table
+        const crewTable = document.getElementById('crew-table');
+        if (crewTable) {
+            crewTable.innerHTML = Components.renderPeopleTable(
+                production.crew,
+                ['Role', 'Name', 'Phone', 'Call Time'],
+                this.state.userPhone,
+                this.exportSettings.includeContacts
+            );
+        }
+
+        // Render cast table
+        const castTable = document.getElementById('cast-table');
+        if (castTable) {
+            castTable.innerHTML = Components.renderPeopleTable(
+                production.cast,
+                ['Character', 'Name', 'Phone', 'Call Time'],
+                this.state.userPhone,
+                this.exportSettings.includeContacts
+            );
+        }
     }
 };
 
