@@ -141,22 +141,26 @@ const Components = {
       return '<p style="color: var(--text-tertiary); text-align: center;">No data available</p>';
     }
 
-    const headerKeys = Object.keys(people[0]);
     const headerRow = headers.map(h => `<th>${h}</th>`).join('');
 
     const rows = people.map(person => {
       const phone = person.Phone || person.phone || '';
       const isHighlighted = highlightPhone && this.normalizePhone(phone) === this.normalizePhone(highlightPhone);
 
-      const cells = headerKeys.map(key => {
+      // Use headers to determine columns (not Object.keys) so Phone column always appears
+      const cells = headers.map(header => {
+        // Map header display name to object key
+        const key = header;
         let value = person[key] || '';
 
         // Handle phone column
-        if (key.toLowerCase() === 'phone' && value) {
-          if (showContacts) {
+        if (header.toLowerCase() === 'phone') {
+          if (value && showContacts) {
+            // Show clickable phone link when authenticated
             const telLink = this.formatPhoneForLink(value);
             value = `<a href="tel:${telLink}" class="phone-link">📞 ${value}</a>`;
           } else {
+            // Show prompt when not authenticated (phone either missing or hidden)
             value = `<span class="phone-obscured">Enter phone to view</span>`;
           }
         }

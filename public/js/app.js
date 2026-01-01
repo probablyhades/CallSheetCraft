@@ -6,7 +6,6 @@
 const App = {
     // Application state
     state: {
-        productions: null,
         grouped: null,
         selectedProduction: null,
         selectedProductionTitle: null,
@@ -123,7 +122,7 @@ const App = {
         this.showScreen('loading');
 
         const data = await API.getProductions();
-        this.state.productions = data.productions;
+        // Note: API now only returns 'grouped' data (no full productions array for security)
         this.state.grouped = data.grouped;
 
         this.renderProductionsGrid();
@@ -182,7 +181,7 @@ const App = {
     async selectDay(productionId, clickedCard = null) {
         this.state.selectedProduction = productionId;
 
-        // First fetch to check if enrichment is needed
+        // Fetch sanitized production data (phone numbers stripped server-side)
         try {
             // Quick fetch without enrichment to check status
             const productionPreview = await API.getProduction(productionId, false);
@@ -198,8 +197,9 @@ const App = {
                 document.getElementById('enrichment-loader')?.classList.remove('hidden');
             }
 
-            // Fetch with enrichment enabled
+            // Fetch with enrichment enabled (still sanitized - no phone numbers)
             this.state.currentProduction = await API.getProduction(productionId, true);
+            // closed_set IS available in sanitized data (needed for UI enforcement)
             this.state.isClosedSet = this.state.currentProduction.properties?.closed_set === true;
 
             // Hide enrichment loader
@@ -240,8 +240,9 @@ const App = {
 
     /**
      * Handle phone form submission
+     * Now uses server-side authentication for security
      */
-    handlePhoneSubmit() {
+    async handlePhoneSubmit() {
         const phoneInput = document.getElementById('phone-input');
         const phone = phoneInput?.value?.trim();
 
@@ -250,63 +251,61 @@ const App = {
             return;
         }
 
-        this.state.userPhone = phone;
-        this.state.isAuthenticated = true;
+        // Show loading state
+        const submitBtn = document.querySelector('#phone-form button[type="submit"]');
+        const originalText = submitBtn?.textContent;
+        if (submitBtn) {
+            submitBtn.textContent = 'Authenticating...';
+            submitBtn.disabled = true;
+        }
 
-        // Find user in crew or cast
-        this.findUser(phone);
+        try {
+            // Authenticate via server - phone validated server-side
+            const result = await API.authenticate(this.state.selectedProduction, phone);
 
-        // Render call sheet
-        this.renderCallSheet();
+            // Check if phone was found in crew/cast
+            if (!result.authenticated) {
+                this.showError('Phone number not found. Please check your number and try again.');
+                phoneInput?.focus();
+                return;
+            }
+
+            // Phone validated - update state with full data
+            this.state.userPhone = phone;
+            this.state.isAuthenticated = true;
+            this.state.userInfo = result.userInfo;
+            this.state.currentProduction = result.production;
+            this.state.isClosedSet = result.isClosedSet;
+
+            // Render call sheet with full data
+            this.renderCallSheet();
+        } catch (error) {
+            console.error('Authentication failed:', error);
+            this.showError('Failed to authenticate. Please try again.');
+        } finally {
+            if (submitBtn) {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            }
+        }
     },
 
     /**
      * Handle skip button
+     * Uses sanitized data (no phone numbers) from initial load
      */
     handleSkip() {
         this.state.isAuthenticated = false;
         this.state.userPhone = null;
         this.state.userInfo = null;
+        // Note: currentProduction already has sanitized data from selectDay
+        // isClosedSet remains false since we don't expose that without auth
 
         this.renderCallSheet();
     },
 
-    /**
-     * Find user in crew or cast by phone number
-     */
-    findUser(phone) {
-        const normalizedPhone = Components.normalizePhone(phone);
-        const production = this.state.currentProduction;
-
-        // Check crew
-        for (const member of production.crew || []) {
-            if (Components.normalizePhone(member.Phone) === normalizedPhone) {
-                this.state.userInfo = {
-                    name: member.Name,
-                    role: member.Role,
-                    callTime: member['Call Time'],
-                    type: 'crew',
-                };
-                return;
-            }
-        }
-
-        // Check cast
-        for (const member of production.cast || []) {
-            if (Components.normalizePhone(member.Phone) === normalizedPhone) {
-                this.state.userInfo = {
-                    name: member.Name,
-                    character: member.Character,
-                    callTime: member['Call Time'],
-                    type: 'cast',
-                };
-                return;
-            }
-        }
-
-        // No match found
-        this.state.userInfo = null;
-    },
+    // Note: findUser function removed - authentication now happens server-side
+    // This prevents client-side access to phone numbers
 
     /**
      * Render the call sheet view
