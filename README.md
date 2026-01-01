@@ -2,10 +2,10 @@
 
 Beautiful, personalized film call sheets powered by Craft and Gemini AI. Created with Google Antigravity and Claude Opus 4.5.
 
-![gallery1-home](docs\images\Screenshot 2026-01-01 180837.png)
-![gallery2-auth](docs\images\Screenshot 2026-01-01 180846.png)
-![gallery3-main](docs\images\Screenshot 2026-01-01 180855.png)
-![gallery4-export](docs\images\Screenshot 2026-01-01 180953.png)
+![gallery1-home](https://github.com/probablyhades/CallSheetCraft/blob/main/docs/images/Screenshot%202026-01-01%20180837.png)
+![gallery2-auth](https://github.com/probablyhades/CallSheetCraft/blob/main/docs/images/Screenshot%202026-01-01%20180846.png)
+![gallery3-main](https://github.com/probablyhades/CallSheetCraft/blob/main/docs/images/Screenshot%202026-01-01%20180855.png)
+![gallery4-export](https://github.com/probablyhades/CallSheetCraft/blob/main/docs/images/Screenshot%202026-01-01%20180953.png)
 
 ## Features
 
