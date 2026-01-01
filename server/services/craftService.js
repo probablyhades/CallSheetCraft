@@ -4,12 +4,28 @@
  */
 
 const CRAFT_API_BASE = process.env.CRAFT_API_BASE || 'https://connect.craft.do/links/Hw5oNoYJQoE/api/v1';
+const CRAFT_API_KEY = process.env.CRAFT_API_KEY;
+
+/**
+ * Get authorization headers for Craft API requests
+ */
+function getAuthHeaders() {
+    const headers = {
+        'Content-Type': 'application/json',
+    };
+    if (CRAFT_API_KEY) {
+        headers['Authorization'] = `Bearer ${CRAFT_API_KEY}`;
+    }
+    return headers;
+}
 
 /**
  * Fetch all collections from Craft
  */
 async function listCollections() {
-    const response = await fetch(`${CRAFT_API_BASE}/collections`);
+    const response = await fetch(`${CRAFT_API_BASE}/collections`, {
+        headers: getAuthHeaders(),
+    });
     if (!response.ok) {
         throw new Error(`Failed to fetch collections: ${response.statusText}`);
     }
@@ -20,7 +36,9 @@ async function listCollections() {
  * Fetch all items from a specific collection
  */
 async function getCollectionItems(collectionId) {
-    const response = await fetch(`${CRAFT_API_BASE}/collections/${collectionId}/items?maxDepth=-1`);
+    const response = await fetch(`${CRAFT_API_BASE}/collections/${collectionId}/items?maxDepth=-1`, {
+        headers: getAuthHeaders(),
+    });
     if (!response.ok) {
         throw new Error(`Failed to fetch collection items: ${response.statusText}`);
     }
@@ -31,7 +49,9 @@ async function getCollectionItems(collectionId) {
  * Fetch a specific block by ID
  */
 async function getBlock(blockId) {
-    const response = await fetch(`${CRAFT_API_BASE}/blocks?id=${blockId}&maxDepth=-1`);
+    const response = await fetch(`${CRAFT_API_BASE}/blocks?id=${blockId}&maxDepth=-1`, {
+        headers: getAuthHeaders(),
+    });
     if (!response.ok) {
         throw new Error(`Failed to fetch block: ${response.statusText}`);
     }
@@ -44,9 +64,7 @@ async function getBlock(blockId) {
 async function updateBlocks(blocks) {
     const response = await fetch(`${CRAFT_API_BASE}/blocks`, {
         method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ blocks }),
     });
     if (!response.ok) {
