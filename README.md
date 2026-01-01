@@ -41,9 +41,10 @@ npm install
 cp .env.example .env
 ```
 
-Edit `.env` and add your API keys:
+Edit `.env` and add your API details:
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
+CRAFT_API_BASE=your_craft_api_base
 CRAFT_API_KEY=your_craft_api_key_here
 ```
 
