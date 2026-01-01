@@ -2,17 +2,34 @@
 
 Beautiful, personalized film call sheets powered by Craft and Gemini AI. Created with Google Antigravity and Claude Opus 4.5.
 
+![gallery1-home](docs\images\Screenshot 2026-01-01 180837.png)
+![gallery2-auth](docs\images\Screenshot 2026-01-01 180846.png)
+![gallery3-main](docs\images\Screenshot 2026-01-01 180855.png)
+![gallery4-export](docs\images\Screenshot 2026-01-01 180953.png)
+
 ## Features
 
-- 🎬 **Production Management** - Browse productions grouped by title with shoot day selection
-- 📱 **Personalized Experience** - Phone number matching for crew/cast personalization
-- 🗺️ **Location Intelligence** - Gemini-powered enrichment with emergency services, weather, and transport info
-- 🔒 **Privacy Controls** - Closed set warnings and contact obscuring for unauthenticated users
-- 📞 **Click-to-Call** - Phone numbers hyperlinked for instant calling
-- 🌍 **Google Maps Integration** - One-click navigation to location addresses
-- 📱 **Responsive Design** - Premium UI optimized for mobile, tablet, and desktop
+- **Production Management** - Select from multiple productions.
+- **Personalised Experience** - Phone number matching for crew/cast personalisation. Uses phone number to authenticate for closed sets and before revealing contact details.
+- **Location Intelligence** - Gemini-powered enrichment with emergency services, weather, and transport info.
+- **Privacy Controls** - Closed set warnings and contact obscuring for unauthenticated users.
+- **Responsive Design** - Premium UI optimized for mobile, tablet, and desktop.
+- **Simple Exports** - Export call sheets as PDFs.
 
-## Quick Start
+## Creating the Craft Backend
+
+### 1. Create Craft document
+- Visit https://docs.40degree.media/callsheetcraft and duplicate the template into your Craft account.
+- Add any relevant productions to the document (if applicable).
+
+### 2. Create and Configure API Connection
+- Open the Imagine tab in Craft and create a new API connection.
+- Choose the option to Connect Selected Documents.
+- Open your new connection, click the purple Add Document button, and select the template you duplicated.
+- In the connection settings, ensure that Permission Level is set to Read and Write, and change access from Public to API Key.
+- Copy the API key from the connection settings. Keep note of this, it won't reappear.
+
+## Setting up a Development Server
 
 ### 1. Install Dependencies
 ```bash
@@ -40,18 +57,21 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Docker Deployment
+## Deploying with Docker
 
 ```bash
 # Build the image
 docker build -t callsheetcraft .
 
 # Run with environment variables
-docker run -p 3000:3000 \
+docker run -p [desired-port]:3000 \
   -e GEMINI_API_KEY=your_gemini_key \
+  -e CRAFT_API_BASE=your_craft_api_base \
   -e CRAFT_API_KEY=your_craft_key \
   callsheetcraft
 ```
+
+The server will run on the port under [desired-port]. I personally deploy this on my own infra and open it to public access via Cloudflare Tunnels.
 
 ## Project Structure
 
